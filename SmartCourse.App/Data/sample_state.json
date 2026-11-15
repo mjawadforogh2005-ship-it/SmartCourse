@@ -8,8 +8,9 @@
     { "Id": "CS200", "Title": "Functional Programming", "Credits": 3, "PrerequisiteCourseIds": ["CS100"] }
   ],
   "Sections": [
-    { "Id": "A", "CourseId": "CS100", "Capacity": 2, "Schedule": [] },
-    { "Id": "B", "CourseId": "CS200", "Capacity": 2, "Schedule": [] }
+    { "Id": "A", "CourseId": "CS100", "Capacity": 2, "Schedule": [{ "Day": 1, "Start": "09:00:00", "End": "10:30:00" }] },
+    { "Id": "A2", "CourseId": "CS100", "Capacity": 2, "Schedule": [{ "Day": 3, "Start": "09:00:00", "End": "10:30:00" }] },
+    { "Id": "B", "CourseId": "CS200", "Capacity": 2, "Schedule": [{ "Day": 2, "Start": "11:00:00", "End": "12:30:00" }] }
   ],
   "Enrollments": []
 }

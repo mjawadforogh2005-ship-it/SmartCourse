@@ -48,9 +48,35 @@ public class AlamZaibTests
     [Fact]
     public void JsonRepository_MissingFile_ThrowsException()
     {
-        // We test the operational boundary: File.ReadAllText
         var missingPath = "does_not_exist.json";
-        
         Assert.Throws<FileNotFoundException>(() => File.ReadAllText(missingPath));
+    }
+
+    // --- NEW REGRESSION TESTS ---
+
+    [Fact]
+    public void Transfer_ToSecondSectionOfSameCourse_Succeeds()
+    {
+        var sampleState = GetSample();
+        var state = Assert.IsType<Result<RegistrationState>.Success>(
+            RegistrationService.Register(sampleState, "S1", "Sec1")).Value;
+        
+        var result = SectionTransferService.Transfer(state, "S1", "Sec1", "Sec2");
+        Assert.IsType<Result<RegistrationState>.Success>(result);
+    }
+
+    [Fact]
+    public void JsonRepository_EmptyJsonObject_ReturnsFailure()
+    {
+        var result = JsonRepository.LoadFromJson("{}");
+        Assert.IsType<Result<RegistrationState>.Failure>(result);
+    }
+
+    [Fact]
+    public void Planning_NegativeCredits_ReturnsFalse()
+    {
+        var state = GetSample();
+        var result = AcademicPlanningService.HasRemainingCreditCapacity(state, "S1", -3);
+        Assert.False(result);
     }
 }
