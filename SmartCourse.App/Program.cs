@@ -2,80 +2,146 @@ using SmartCourse.App.Models;
 using SmartCourse.App.Services;
 using SmartCourse.App.Functional;
 
-// 1. Look for the file inside the Data folder
-var jsonPath = Path.Combine(Directory.GetCurrentDirectory(), "SmartCourse.App", "Data", "sample_state.json");
-var json = File.ReadAllText(jsonPath);
-var loadResult = JsonRepository.LoadFromJson(json);
-
-if (loadResult is Result<RegistrationState>.Failure fail)
+// --data allows an isolated demo/test file. Normal runs use a stable per-user save file.
+if (args.Length != 0 && (args.Length != 2 || args[0] != "--data"))
 {
-    Console.WriteLine($"Failed to load data: {fail.Error}");
+    Console.WriteLine("Usage: SmartCourse.App [--data path-to-json]");
+    Environment.ExitCode = 1;
     return;
 }
+var dataPath = args.Length == 2 ? args[1] : Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SmartCourse", "state.json");
+var seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "sample_state.json");
+var loaded = File.Exists(dataPath) ? LoadData(dataPath)
+    : args.Length == 2 ? LoadData(dataPath) : LoadData(seedPath);
+if (loaded is Result<RegistrationState>.Failure loadError)
+{
+    Console.WriteLine($"Cannot start: {loadError.Error}");
+    Environment.ExitCode = 1;
+    return;
+}
+var state = ((Result<RegistrationState>.Success)loaded).Value;
+Console.WriteLine("SmartCourse — Course Registration");
+Console.WriteLine($"Save file: {dataPath}");
+Console.WriteLine("Changes are saved after every successful registration, drop, or transfer.");
 
-// 2. Initialize state from JSON
-var state = ((Result<RegistrationState>.Success)loadResult).Value;
-Console.WriteLine("SmartCourse demo: in-memory data loaded from JSON.");
-Console.WriteLine("Students S001 (Mohammad) / S002 (Afridi). Sections A (Programming), B (requires CS100).");
-
+string? ReadId(string label)
+{
+    Console.Write(label);
+    return Console.ReadLine()?.Trim();
+}
+// Match catalog IDs without forcing users to copy their letter casing.
+string StudentId(string id) => state.Students.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase))?.Id ?? id;
+string SectionId(string id) => state.Sections.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase))?.Id ?? id;
+void Apply(Result<RegistrationState> result)
+{
+    if (result is Result<RegistrationState>.Failure error) { Console.WriteLine($"Rejected: {error.Error}"); return; }
+    var next = ((Result<RegistrationState>.Success)result).Value;
+    switch (SaveData(next, dataPath))
+    {
+        case Result<RegistrationState>.Success:
+            state = next;
+            Console.WriteLine("Success. Changes saved.");
+            break;
+        case Result<RegistrationState>.Failure saveError:
+            Console.WriteLine($"Change not applied: {saveError.Error}");
+            break;
+    }
+}
 while (true)
 {
-    Console.WriteLine("\n1 Register | 2 Drop | 3 Transfer | 4 Reports | 5 Enrollments | 0 Exit");
-    var choice = Console.ReadLine();
+    Console.WriteLine("\n1 Register | 2 Drop | 3 Transfer | 4 Reports | 5 Enrollments");
+    Console.WriteLine("6 Plan courses | 7 Check credits | 8 Catalog | 0 Exit");
+    var choice = Console.ReadLine()?.Trim();
     if (choice is null or "0") break;
-    
+    if (choice == "") continue;
+    if (choice == "8")
+    {
+        foreach (var student in state.Students) Console.WriteLine($"{student.Id}: {student.Name}, credit limit {student.CreditLimit}");
+        foreach (var section in state.Sections)
+        {
+            var course = state.Courses.First(c => c.Id == section.CourseId);
+            Console.WriteLine($"{section.Id}: {course.Title}, {course.Credits} credits, {state.Enrollments.Count(e => e.SectionId == section.Id)}/{section.Capacity} seats used; prerequisites: {string.Join(", ", course.PrerequisiteCourseIds)}");
+            foreach (var slot in section.Schedule) Console.WriteLine($"  {slot.Day} {slot.Start:HH:mm}-{slot.End:HH:mm}");
+        }
+        continue;
+    }
+    if (choice == "4")
+    {
+        Console.WriteLine("Course enrollment summary:");
+        foreach (var row in CourseReports.GetCourseEnrollmentSummary(state)) Console.WriteLine(row);
+        Console.WriteLine("Student credit loads:");
+        foreach (var row in CourseReports.GetStudentCreditLoads(state)) Console.WriteLine($"{row.StudentId}: {row.TotalCredits} credits");
+        continue;
+    }
     if (choice == "5")
     {
         if (state.Enrollments.IsEmpty) Console.WriteLine("No enrollments.");
         foreach (var e in state.Enrollments) Console.WriteLine($"{e.StudentId} -> {e.SectionId}");
         continue;
     }
-    
-    if (choice == "4")
+    if (choice is not ("1" or "2" or "3" or "6" or "7")) { Console.WriteLine("Choose a listed option."); continue; }
+    var input = ReadId("Student ID: ");
+    if (input is null) break;
+    var studentId = StudentId(input);
+    if (!state.Students.Any(s => s.Id == studentId)) { Console.WriteLine("Student not found."); continue; }
+    if (choice == "6")
     {
-        Console.WriteLine("--- Course Enrollment Summary ---");
-        foreach (var report in CourseReports.GetCourseEnrollmentSummary(state))
-        {
-            // Safely extract the properties from the anonymous object
-            var courseId = report.GetType().GetProperty("CourseId")?.GetValue(report, null);
-            var totalEnrollments = report.GetType().GetProperty("TotalEnrollments")?.GetValue(report, null);
-            var capacity = report.GetType().GetProperty("Capacity")?.GetValue(report, null);
-            
-            Console.WriteLine($"Course {courseId}: {totalEnrollments} enrolled / {capacity} total capacity");
-        }
-            
-        Console.WriteLine("--- Student Credit Loads ---");
-        foreach (var report in CourseReports.GetStudentCreditLoads(state))
-            Console.WriteLine($"Student {report.StudentId}: {report.TotalCredits} credits");
+        var recommendations = AcademicPlanningService.RecommendCourses(state, studentId).ToList();
+        if (recommendations.Count == 0) Console.WriteLine("No eligible courses with available, conflict-free sections.");
+        foreach (var course in recommendations) Console.WriteLine($"{course.Id}: {course.Title} ({course.Credits} credits)");
+        Console.WriteLine("Each recommendation is evaluated separately against the current schedule.");
         continue;
     }
-
-    if (choice is not ("1" or "2" or "3")) { Console.WriteLine("Invalid option."); continue; }
-    
-    Console.Write("Student ID: "); var studentId = Console.ReadLine()?.Trim().ToUpperInvariant();
-    
+    if (choice == "7")
+    {
+        Console.Write("Additional credits: "); var creditsText = Console.ReadLine();
+        if (creditsText is null) break;
+        if (!int.TryParse(creditsText, out var credits)) { Console.WriteLine("Enter a positive whole number."); continue; }
+        if (credits <= 0) Console.WriteLine("Additional credits must be positive.");
+        else if (AcademicPlanningService.HasRemainingCreditCapacity(state, studentId, credits))
+            Console.WriteLine("The proposed credits fit within your limit.");
+        else Console.WriteLine("Credit limit exceeded.");
+        continue;
+    }
+    var first = ReadId(choice == "3" ? "From section ID: " : "Section ID: ");
+    if (first is null) break;
+    var sectionId = SectionId(first);
     if (choice == "3")
     {
-        Console.Write("From Section ID: "); var fromId = Console.ReadLine()?.Trim().ToUpperInvariant();
-        Console.Write("To Section ID: "); var toId = Console.ReadLine()?.Trim().ToUpperInvariant();
-        if (studentId is null || fromId is null || toId is null) break;
-        
-        var result = SectionTransferService.Transfer(state, studentId, fromId, toId);
-        switch (result)
-        {
-            case Result<RegistrationState>.Success(var updated): state = updated; Console.WriteLine("Transfer successful."); break;
-            case Result<RegistrationState>.Failure(var error): Console.WriteLine($"Rejected: {error}"); break;
-        }
-        continue;
+        var second = ReadId("To section ID: "); if (second is null) break;
+        Apply(SectionTransferService.Transfer(state, studentId, sectionId, SectionId(second)));
     }
+    else Apply(choice == "1" ? RegistrationService.Register(state, studentId, sectionId) : RegistrationService.Drop(state, studentId, sectionId));
+}
 
-    Console.Write("Section ID: "); var sectionId = Console.ReadLine()?.Trim().ToUpperInvariant();
-    if (studentId is null || sectionId is null) break;
-    
-    var regResult = choice == "1" ? RegistrationService.Register(state, studentId, sectionId) : RegistrationService.Drop(state, studentId, sectionId);
-    switch (regResult)
+// Console boundary: keep file I/O outside the pure services.
+static Result<RegistrationState> LoadData(string path)
+{
+    try { return JsonRepository.LoadFromJson(File.ReadAllText(path)); }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+    { return new Result<RegistrationState>.Failure($"Cannot read data file: {ex.Message}"); }
+}
+
+static Result<RegistrationState> SaveData(RegistrationState next, string path)
+{
+    var serialized = JsonRepository.SaveToJson(next);
+    if (serialized is Result<string>.Failure failure) return new Result<RegistrationState>.Failure(failure.Error);
+    string? temporary = null;
+    try
     {
-        case Result<RegistrationState>.Success(var updated): state = updated; Console.WriteLine("Success."); break;
-        case Result<RegistrationState>.Failure(var error): Console.WriteLine($"Rejected: {error}"); break;
+        var fullPath = Path.GetFullPath(path);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        temporary = fullPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        File.WriteAllText(temporary, ((Result<string>.Success)serialized).Value);
+        File.Move(temporary, fullPath, overwrite: true);
+        return new Result<RegistrationState>.Success(next);
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+    { return new Result<RegistrationState>.Failure($"Cannot save data file: {ex.Message}"); }
+    finally
+    {
+        if (temporary is not null)
+            try { File.Delete(temporary); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 }
