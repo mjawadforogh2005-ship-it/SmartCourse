@@ -7,9 +7,17 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Tell the C# compiler to ignore the C files in NativeLib -->
+  <ItemGroup>
+    <Compile Remove="NativeLib\**" />
+    <None Include="NativeLib\**" />
+  </ItemGroup>
+
+  <!-- Ensure the JSON data file copies to the output and publish folders -->
   <ItemGroup>
     <None Update="Data\sample_state.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 
