@@ -18,10 +18,4 @@ The pipeline is ValidateStudent -> ValidateSection -> ValidateEligibility, compo
 
 Persistence validates initialized collections, unique nonblank IDs, positive course credits, nonnegative capacity/credit limits, valid foreign keys, unique student/course enrollment, and meeting start < end. Core calculations assume structurally valid snapshots.
 
-Alam Zaib's planning, transfers, LINQ reports, extension methods, lazy processing, JSON/sample data and tests are implemented. Program.cs integrates these actual APIs. Transfers verify original enrollment and same course, build a tentative dropped snapshot, then register into the target. On failure the original state is retained.
-
-## Defense
-
-Explain immutability, Map versus Bind, missing lookups with Maybe, the policy function, and failure propagation. Demonstrate successful registration, missing prerequisites, dropping, and tests. Change a credit limit and predict the result.
-
-This is not the complete team submission. Verify the original requirements PDF and acknowledge AI assistance as required by your instructor.
+Alam Zaib's planning, transfers, LINQ reports, extension methods, lazy processing, JSON/sample data, Native C Library Integration (P/Invoke), and tests are implemented. Program.cs integrates these actual APIs. Transfers verify original enrollment and same course, build a tentative dropped snapshot, then register into the target. On failure the original state is retained.
