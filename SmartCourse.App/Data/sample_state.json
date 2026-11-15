@@ -1,0 +1,15 @@
+{
+  "Students": [
+    { "Id": "S001", "Name": "Mohammad", "CompletedCourseIds": ["CS100"], "CreditLimit": 6 },
+    { "Id": "S002", "Name": "Afridi", "CompletedCourseIds": [], "CreditLimit": 6 }
+  ],
+  "Courses": [
+    { "Id": "CS100", "Title": "Programming", "Credits": 3, "PrerequisiteCourseIds": [] },
+    { "Id": "CS200", "Title": "Functional Programming", "Credits": 3, "PrerequisiteCourseIds": ["CS100"] }
+  ],
+  "Sections": [
+    { "Id": "A", "CourseId": "CS100", "Capacity": 2, "Schedule": [] },
+    { "Id": "B", "CourseId": "CS200", "Capacity": 2, "Schedule": [] }
+  ],
+  "Enrollments": []
+}
