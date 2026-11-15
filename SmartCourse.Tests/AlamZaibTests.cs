@@ -52,8 +52,6 @@ public class AlamZaibTests
         Assert.Throws<FileNotFoundException>(() => File.ReadAllText(missingPath));
     }
 
-    // --- NEW REGRESSION TESTS ---
-
     [Fact]
     public void Transfer_ToSecondSectionOfSameCourse_Succeeds()
     {
@@ -78,5 +76,15 @@ public class AlamZaibTests
         var state = GetSample();
         var result = AcademicPlanningService.HasRemainingCreditCapacity(state, "S1", -3);
         Assert.False(result);
+    }
+
+    // --- NATIVE MATH INTEGRATION TEST ---
+    [Fact]
+    public void NativeMath_CalculatesBonusCredits()
+    {
+        // Even without the DLL compiled, the Safe wrapper will use the fallback math
+        Assert.Equal(3, NativeMath.GetBonusCreditsSafe(3));
+        Assert.Equal(11, NativeMath.GetBonusCreditsSafe(10));
+        Assert.Equal(0, NativeMath.GetBonusCreditsSafe(-5));
     }
 }
