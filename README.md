@@ -18,4 +18,14 @@ The pipeline is ValidateStudent -> ValidateSection -> ValidateEligibility, compo
 
 Persistence validates initialized collections, unique nonblank IDs, positive course credits, nonnegative capacity/credit limits, valid foreign keys, unique student/course enrollment, and meeting start < end. Core calculations assume structurally valid snapshots.
 
-Alam Zaib's planning, transfers, LINQ reports, extension methods, lazy processing, JSON/sample data, Native C Library Integration (P/Invoke), and tests are implemented. Program.cs integrates these actual APIs. Transfers verify original enrollment and same course, build a tentative dropped snapshot, then register into the target. On failure the original state is retained.
+Alam Zaib's planning, transfers, LINQ reports, extension methods, lazy processing, JSON/sample data, Native C Library Integration (P/Invoke), configured functions (curried policies), and tests are implemented. Program.cs integrates these actual APIs. Transfers verify original enrollment and same course, build a tentative dropped snapshot, then register into the target. On failure the original state is retained.
+
+## Native C Library Build Instructions (Windows)
+
+The `smartmath.c` file contains a native C function used by the C# application via P/Invoke (`NativeMath.cs`).
+
+To compile it:
+1. Open the **Developer Command Prompt for VS**.
+2. Navigate to the `SmartCourse.App/NativeLib` folder:
+   ```cmd
+   cd SmartCourse.App\NativeLib

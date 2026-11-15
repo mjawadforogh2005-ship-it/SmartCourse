@@ -30,7 +30,6 @@ string? ReadId(string label)
     Console.Write(label);
     return Console.ReadLine()?.Trim();
 }
-// Match catalog IDs without forcing users to copy their letter casing.
 string StudentId(string id) => state.Students.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase))?.Id ?? id;
 string SectionId(string id) => state.Sections.FirstOrDefault(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase))?.Id ?? id;
 void Apply(Result<RegistrationState> result)
@@ -112,10 +111,14 @@ while (true)
         var second = ReadId("To section ID: "); if (second is null) break;
         Apply(SectionTransferService.Transfer(state, studentId, sectionId, SectionId(second)));
     }
-    else Apply(choice == "1" ? RegistrationService.Register(state, studentId, sectionId) : RegistrationService.Drop(state, studentId, sectionId));
+    else
+    {
+        // Use the curried function here to apply strict prerequisite policy
+        var strictPolicy = EligibilityPolicies.MakeStrictPrerequisitePolicy();
+        Apply(choice == "1" ? RegistrationService.Register(state, studentId, sectionId, strictPolicy) : RegistrationService.Drop(state, studentId, sectionId));
+    }
 }
 
-// Console boundary: keep file I/O outside the pure services.
 static Result<RegistrationState> LoadData(string path)
 {
     try { return JsonRepository.LoadFromJson(File.ReadAllText(path)); }
